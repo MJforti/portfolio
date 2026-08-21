@@ -64,6 +64,7 @@
     const timeline=document.querySelector('.timeline');
     if(timeline&&!document.querySelector('.exchange-role'))timeline.insertAdjacentHTML('beforeend','<article class="role exchange-role"><time>Aug 2025</time><div><h3>Student Delegate</h3><div class="place">HCMUT · Vietnam</div></div><p>Represented Bennett University at a global summer exchange, exploring climate resilience, waste treatment and circular-economy systems alongside peers from Vietnam, Japan and Indonesia.</p><span>↗</span></article>');
   </script>
+  <link rel="preload" as="image" href="./ezgif-1650ba708e34b86e-jpg/ezgif-frame-001.jpg">
   <script>
     (()=>{
       if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
@@ -73,7 +74,7 @@
       if(!canvas||!context)return;
       const frameCount=300;
       const frames=new Array(frameCount);
-      let loaded=0,ticking=false,currentFrame=-1;
+      let loaded=0,ticking=false,currentFrame=0;
       const cover=(image)=>{
         const dpr=Math.min(window.devicePixelRatio||1,2.5),cw=innerWidth*dpr,ch=innerHeight*dpr;
         const imageRatio=image.naturalWidth/image.naturalHeight,canvasRatio=cw/ch,zoom=innerWidth<760?1.1:1.0;
@@ -82,8 +83,16 @@
         width*=zoom;height*=zoom;
         context.drawImage(image,(cw-width)/2,(ch-height)/2,width,height);
       };
+      const getFrame=(idx)=>{
+        if(frames[idx]?.complete&&frames[idx]?.naturalWidth)return frames[idx];
+        for(let d=1;d<frameCount;d++){
+          if(idx-d>=0&&frames[idx-d]?.complete&&frames[idx-d]?.naturalWidth)return frames[idx-d];
+          if(idx+d<frameCount&&frames[idx+d]?.complete&&frames[idx+d]?.naturalWidth)return frames[idx+d];
+        }
+        return null;
+      };
       const draw=(index)=>{
-        const image=frames[index];
+        const image=getFrame(index);
         if(!image)return;
         const dpr=Math.min(window.devicePixelRatio||1,2.5);
         context.setTransform(1,0,0,1,0,0);
@@ -93,10 +102,10 @@
         cover(image);
       };
       const resize=()=>{
-        const dpr=Math.min(devicePixelRatio||1,2);
+        const dpr=Math.min(window.devicePixelRatio||1,2.5);
         canvas.width=innerWidth*dpr;canvas.height=innerHeight*dpr;
         canvas.style.width=`${innerWidth}px`;canvas.style.height=`${innerHeight}px`;
-        if(currentFrame>=0)draw(currentFrame);
+        draw(currentFrame);
       };
       const update=()=>{
         ticking=false;
@@ -107,13 +116,20 @@
       };
       const onScroll=()=>{if(!ticking){ticking=true;requestAnimationFrame(update)}};
       resize();
+      
+      const onFrameLoad=(idx)=>{
+        loaded++;
+        loader?.style.setProperty('--load',String(loaded/frameCount));
+        if(!canvas.classList.contains('ready')&&(idx===0||frames[0]?.complete)){
+          canvas.classList.add('ready');
+          draw(currentFrame);
+        }
+        if(loaded===frameCount){loader?.classList.add('done');update()}
+      };
+
       for(let index=0;index<frameCount;index++){
         const image=new Image();
-        image.onload=image.onerror=()=>{
-          loaded++;
-          loader?.style.setProperty('--load',String(loaded/frameCount));
-          if(loaded===frameCount){canvas.classList.add('ready');loader?.classList.add('done');update()}
-        };
+        image.onload=image.onerror=()=>onFrameLoad(index);
         image.src=`./ezgif-1650ba708e34b86e-jpg/ezgif-frame-${String(index+1).padStart(3,'0')}.jpg`;
         frames[index]=image;
       }
