@@ -64,7 +64,7 @@
     const timeline=document.querySelector('.timeline');
     if(timeline&&!document.querySelector('.exchange-role'))timeline.insertAdjacentHTML('beforeend','<article class="role exchange-role"><time>Aug 2025</time><div><h3>Student Delegate</h3><div class="place">HCMUT · Vietnam</div></div><p>Represented Bennett University at a global summer exchange, exploring climate resilience, waste treatment and circular-economy systems alongside peers from Vietnam, Japan and Indonesia.</p><span>↗</span></article>');
   </script>
-  <link rel="preload" as="video" href="./Man_smiling_and_nodding_202608150018_gwr_video_mvp.mp4">
+  <link rel="preload" as="image" href="./ezgif-1650ba708e34b86e-jpg/ezgif-frame-001.jpg">
   <script>
     (()=>{
       if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
@@ -72,29 +72,17 @@
       const loader=document.querySelector('#frame-loader');
       const context=canvas?.getContext('2d',{alpha:false});
       if(!canvas||!context)return;
-
-      const video=document.createElement('video');
-      video.src='./Man_smiling_and_nodding_202608150018_gwr_video_mvp.mp4';
-      video.muted=true;
-      video.playsInline=true;
-      video.preload='auto';
-
       const frameCount=300;
       const frames=new Array(frameCount);
-      let loaded=0,targetProgress=0,smoothProgress=0,isVideoReady=false;
-
-      const cover=(source)=>{
+      let loaded=0,ticking=false,currentFrame=0;
+      const cover=(image)=>{
         const dpr=Math.min(window.devicePixelRatio||1,2.5),cw=innerWidth*dpr,ch=innerHeight*dpr;
-        const sourceWidth=source.videoWidth||source.naturalWidth;
-        const sourceHeight=source.videoHeight||source.naturalHeight;
-        if(!sourceWidth||!sourceHeight)return;
-        const imageRatio=sourceWidth/sourceHeight,canvasRatio=cw/ch,zoom=innerWidth<760?1.1:1.0;
+        const imageRatio=image.naturalWidth/image.naturalHeight,canvasRatio=cw/ch,zoom=innerWidth<760?1.1:1.0;
         let width,height;
         if(canvasRatio>imageRatio){width=cw;height=cw/imageRatio}else{height=ch;width=ch*imageRatio}
         width*=zoom;height*=zoom;
-        context.drawImage(source,(cw-width)/2,(ch-height)/2,width,height);
+        context.drawImage(image,(cw-width)/2,(ch-height)/2,width,height);
       };
-
       const getFrame=(idx)=>{
         if(frames[idx]?.complete&&frames[idx]?.naturalWidth)return frames[idx];
         for(let d=1;d<frameCount;d++){
@@ -103,64 +91,53 @@
         }
         return null;
       };
-
-      const resize=()=>{
-        const dpr=Math.min(window.devicePixelRatio||1,2.5);
-        canvas.width=innerWidth*dpr;canvas.height=innerHeight*dpr;
-        canvas.style.width=`${innerWidth}px`;canvas.style.height=`${innerHeight}px`;
-      };
-
-      video.addEventListener('loadedmetadata',()=>{
-        isVideoReady=true;
-        canvas.classList.add('ready');
-        loader?.classList.add('done');
-      });
-
-      const render=()=>{
-        const max=document.documentElement.scrollHeight-innerHeight;
-        targetProgress=max?Math.min(1,Math.max(0,scrollY/max)):0;
-        
-        // 60FPS smooth lerp momentum interpolation
-        smoothProgress+=(targetProgress-smoothProgress)*0.09;
-
+      const draw=(index)=>{
+        const image=getFrame(index);
+        if(!image)return;
         const dpr=Math.min(window.devicePixelRatio||1,2.5);
         context.setTransform(1,0,0,1,0,0);
         context.clearRect(0,0,innerWidth*dpr,innerHeight*dpr);
         context.imageSmoothingEnabled=true;
         context.imageSmoothingQuality='high';
-
-        if(isVideoReady&&video.duration){
-          video.currentTime=smoothProgress*video.duration;
-          cover(video);
-        }else{
-          const frameIndex=Math.min(frameCount-1,Math.floor(smoothProgress*(frameCount-1)));
-          const img=getFrame(frameIndex);
-          if(img){
-            canvas.classList.add('ready');
-            cover(img);
-          }
+        cover(image);
+      };
+      const resize=()=>{
+        const dpr=Math.min(window.devicePixelRatio||1,2.5);
+        canvas.width=innerWidth*dpr;canvas.height=innerHeight*dpr;
+        canvas.style.width=`${innerWidth}px`;canvas.style.height=`${innerHeight}px`;
+        draw(currentFrame);
+      };
+      const update=()=>{
+        ticking=false;
+        const max=document.documentElement.scrollHeight-innerHeight;
+        const progress=max?Math.min(1,Math.max(0,scrollY/max)):0;
+        currentFrame=Math.min(frameCount-1,Math.floor(progress*(frameCount-1)));
+        draw(currentFrame);
+      };
+      const onScroll=()=>{if(!ticking){ticking=true;requestAnimationFrame(update)}};
+      resize();
+      
+      const onFrameLoad=(idx)=>{
+        loaded++;
+        loader?.style.setProperty('--load',String(loaded/frameCount));
+        if(!canvas.classList.contains('ready')&&(idx===0||frames[0]?.complete)){
+          canvas.classList.add('ready');
+          draw(currentFrame);
         }
-        requestAnimationFrame(render);
+        if(loaded===frameCount){loader?.classList.add('done');update()}
       };
 
-      resize();
-      requestAnimationFrame(render);
-
-      // Preload image frames as fallback
       const loadOrder=[];
       for(let i=0;i<frameCount;i+=3)loadOrder.push(i);
       for(let i=0;i<frameCount;i++){if(i%3!==0)loadOrder.push(i)}
+
       loadOrder.forEach(index=>{
         const image=new Image();
-        image.onload=image.onerror=()=>{
-          loaded++;
-          loader?.style.setProperty('--load',String(loaded/frameCount));
-          if(loaded===frameCount&&!isVideoReady)loader?.classList.add('done');
-        };
+        image.onload=image.onerror=()=>onFrameLoad(index);
         image.src=`./ezgif-1650ba708e34b86e-jpg/ezgif-frame-${String(index+1).padStart(3,'0')}.jpg`;
         frames[index]=image;
       });
-
+      addEventListener('scroll',onScroll,{passive:true});
       addEventListener('resize',resize,{passive:true});
     })();
   </script>
